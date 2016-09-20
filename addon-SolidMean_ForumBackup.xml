@@ -1,0 +1,328 @@
+<?xml version="1.0" encoding="utf-8"?>
+<addon addon_id="SolidMean_ForumBackup" title="ForumBackup" version_string="1.2.01" version_id="17" url="" install_callback_class="SolidMean_ForumBackup_Install" install_callback_method="build" uninstall_callback_class="SolidMean_ForumBackup_Uninstall" uninstall_callback_method="destroy">
+  <admin_navigation/>
+  <admin_permissions/>
+  <admin_style_properties/>
+  <admin_templates>
+    <template title="SolidMeanForumBackup_option_list"><![CDATA[<xen:title>{xen:phrase options}: {$group.title}</xen:title>
+<xen:h1>{$group.title}</xen:h1>
+
+<xen:container var="$head.optionCss">
+<style>
+.hiddenOption   { display: inline-block; font-size: 9px; margin-right: 3px; color: {xen:property mutedTextColor}; }
+.hiddenOption a { position: static; }
+.optionList a.optionAnchor { position: absolute; top: -80px; } /* prevents anchors pointing going under the fixed header */
+</style>
+</xen:container>
+
+<xen:if is="{$canEditGroup}">
+	<xen:topctrl>
+		<a href="{xen:adminlink 'options/add-option', '', "group_id={$group.group_id}"}" class="button">+ {xen:phrase add_option}</a>
+		<a class="button" href="{xen:adminlink 'options/display-order', $group}">{xen:phrase display_order}</a>
+		<a class="button" href="{xen:adminlink 'options/edit-group', $group}">{xen:phrase edit_group}</a>
+	</xen:topctrl>
+</xen:if>
+
+<xen:form action="{xen:adminlink 'options/save', $group}">
+	
+	<div class="topChoosers">
+		<div class="Popup">
+			<span class="muted">{xen:phrase option_groups}:</span> <a rel="Menu">{$group.title}</a>
+			<div class="Menu">
+				<div class="primaryContent menuHeader"><h3>{xen:phrase option_groups}</h3></div>
+				<ul class="secondaryContent blockLinksList">
+				<xen:foreach loop="$groups" value="$_group">
+					<li><a href="{xen:adminlink 'options/list', $_group}">{$_group.title}</a></li>
+				</xen:foreach>
+				</ul>
+			</div>
+		</div>
+	</div>
+
+	<xen:if hascontent="true"><div class="optionGroupDescription muted"><i><xen:contentcheck>{xen:raw $group.description}</xen:contentcheck></i></div></xen:if>
+
+	<ul class="tabs mainTabs Tabs" data-panes="#OptionPanes > li" data-history="on">
+	<li><a href="{$requestPaths.requestUri}#1">{xen:phrase tab_solidmean_forumbackup_main_options}</a></li>
+	<li><a href="{$requestPaths.requestUri}#2">{xen:phrase tab_solidmean_forumbackup_database_options}</a></li>
+	<li><a href="{$requestPaths.requestUri}#3">{xen:phrase tab_solidmean_forumbackup_code_options}</a></li>
+	<xen:include template="smFB_SFTP_include_option_tab" />
+	<xen:include template="smFB_DropBox_include_option_tab" />
+	<li><a href="{$requestPaths.requestUri}#9">{xen:phrase tab_solidmean_forumbackup_misc_options}</a></li>
+	</ul>
+
+	<ul id="OptionPanes">
+	<xen:foreach loop="$renderedOptions" value="$_group">
+		<xen:if hascontent="true">
+		<li id="{$i}" class="profileContent">
+		<fieldset class="optionList">
+			<xen:contentcheck>
+			<xen:set var="$i">{xen:calc '{$i} + 1'}</xen:set>
+			<xen:foreach loop="$_group" key="$optionId" value="$renderedOption">{xen:raw $renderedOption}</xen:foreach>
+			</xen:contentcheck>
+		</fieldset>
+		</li>
+		</xen:if>
+	</xen:foreach>
+	</ul>
+
+	<xen:submitunit save="{xen:phrase save_changes}">
+		<input type="reset" class="button" value="{xen:phrase cancel}" accesskey="r" />
+	</xen:submitunit>
+</xen:form>]]></template>
+  </admin_templates>
+  <admin_template_modifications/>
+  <code_events/>
+  <code_event_listeners>
+    <listener event_id="template_post_render" execute_order="10" callback_class="SolidMean_ForumBackup_Listener_Template" callback_method="templatePostRender" active="1" hint="" description="Admin options as tabs"/>
+  </code_event_listeners>
+  <cron/>
+  <email_templates>
+    <template title="solidmean_forumbackup_email_admin">
+      <subject><![CDATA[{xen:phrase solidmean_forumbackup_email_subject, 'type={$type}', 'subject={$subject}', 'board_title={$xenOptions.boardTitle}'}]]></subject>
+      <body_text><![CDATA[{xen:phrase solidmean_forumbackup_email_body_text,
+        'subject={$subject}',	
+        'type={$type}',
+        'stoptime={$stoptime}',
+        'starttime={$starttime}',
+        'elapsedtime={$elapsedtime}',
+        'path={$path}'
+}
+]]></body_text>
+      <body_html><![CDATA[<p style="margin-top: 0">{xen:phrase solidmean_forumbackup_email_body_html,
+	 'type={$type}',
+         'board=<a href="{xen:link canonical:index}" style="color: #176093; text-decoration: none">{$xenOptions.boardTitle}</a>'}</p>
+
+<h2 style="font-size: 18pt; font-weight: normal; margin: 10px 0">{$subject}</h2>
+<hr style="height: 1px; margin: 10px 0; border: 0; color: #D7EDFC; background-color: #D7EDFC" />
+<p>Results:</p>
+<p>
+{xen:phrase solidmean_forumbackup_start_time}: {xen:string nl2br, $starttime}</br>
+{xen:phrase solidmean_forumbackup_stop_time}: {xen:string nl2br, $stoptime}</br>
+<br />
+{xen:phrase solidmean_forumbackup_elapsed_time}: {xen:string nl2br, $elapsedtime}<br />
+{xen:phrase solidmean_forumbackup_path_to_file}: {xen:string nl2br, $path}
+</p>
+
+<h2 style="font-size: 18pt; font-weight: normal; margin: 10px 0">{$results}</h2>
+
+<p><a href="{xen:link canonical:index}" style="color: #176093">{xen:phrase log_in}</a></p>
+
+<p>{xen:phrase thanks}<br />
+{$xenOptions.boardTitle}</p>]]></body_html>
+    </template>
+  </email_templates>
+  <email_template_modifications/>
+  <optiongroups>
+    <group group_id="SolidMeanForumBackup" display_order="10000" debug_only="0"/>
+    <option option_id="SolidMeanBackupForumGzipPath" edit_format="textbox" data_type="string" can_backup="1" validation_class="SolidMean_ForumBackup_Option_BinaryPath" validation_method="verifyGzipOption">
+      <default_value></default_value>
+      <edit_format_params></edit_format_params>
+      <sub_options></sub_options>
+      <relation group_id="SolidMeanForumBackup" display_order="970"/>
+    </option>
+    <option option_id="SolidMeanBackupForumMysqldumpPath" edit_format="textbox" data_type="string" can_backup="1" validation_class="SolidMean_ForumBackup_Option_BinaryPath" validation_method="verifyMySQLDumpOption">
+      <default_value></default_value>
+      <edit_format_params></edit_format_params>
+      <sub_options></sub_options>
+      <relation group_id="SolidMeanForumBackup" display_order="950"/>
+    </option>
+    <option option_id="SolidMeanBackupForumTarPath" edit_format="textbox" data_type="string" can_backup="1" validation_class="SolidMean_ForumBackup_Option_BinaryPath" validation_method="verifyTarOption">
+      <default_value></default_value>
+      <edit_format_params></edit_format_params>
+      <sub_options></sub_options>
+      <relation group_id="SolidMeanForumBackup" display_order="960"/>
+    </option>
+    <option option_id="SolidMeanForumBackupCompressCode" edit_format="onoff" data_type="boolean" can_backup="1">
+      <default_value>true</default_value>
+      <edit_format_params></edit_format_params>
+      <sub_options></sub_options>
+      <relation group_id="SolidMeanForumBackup" display_order="202"/>
+    </option>
+    <option option_id="SolidMeanForumBackupCompressDatabase" edit_format="onoff" data_type="boolean" can_backup="1">
+      <default_value>true</default_value>
+      <edit_format_params></edit_format_params>
+      <sub_options></sub_options>
+      <relation group_id="SolidMeanForumBackup" display_order="102"/>
+    </option>
+    <option option_id="SolidMeanForumBackupCompressionType" edit_format="radio" data_type="string" can_backup="1" validation_class="SolidMean_ForumBackup_Option_CompressionType" validation_method="verifyCompressionType">
+      <default_value>gzip</default_value>
+      <edit_format_params>gzip=gzip
+pigz=pigz</edit_format_params>
+      <sub_options></sub_options>
+      <relation group_id="SolidMeanForumBackup" display_order="945"/>
+    </option>
+    <option option_id="SolidMeanForumBackupCopies" edit_format="spinbox" data_type="integer" can_backup="1">
+      <default_value>7</default_value>
+      <edit_format_params>min=1
+step=1
+max=100</edit_format_params>
+      <sub_options></sub_options>
+      <relation group_id="SolidMeanForumBackup" display_order="110"/>
+    </option>
+    <option option_id="SolidMeanForumBackupCopiesCode" edit_format="spinbox" data_type="integer" can_backup="1">
+      <default_value>7</default_value>
+      <edit_format_params>min=1
+step=1
+max=100</edit_format_params>
+      <sub_options></sub_options>
+      <relation group_id="SolidMeanForumBackup" display_order="210"/>
+    </option>
+    <option option_id="SolidMeanForumBackupDateFormat" edit_format="textbox" data_type="string" can_backup="1">
+      <default_value>Y-m-d-His</default_value>
+      <edit_format_params></edit_format_params>
+      <sub_options></sub_options>
+      <relation group_id="SolidMeanForumBackup" display_order="15"/>
+    </option>
+    <option option_id="SolidMeanForumBackupDebug" edit_format="onoff" data_type="boolean" can_backup="1">
+      <default_value></default_value>
+      <edit_format_params></edit_format_params>
+      <sub_options></sub_options>
+      <relation group_id="SolidMeanForumBackup" display_order="930"/>
+    </option>
+    <option option_id="SolidMeanForumBackupDirectory" edit_format="textbox" data_type="string" can_backup="1" validation_class="SolidMean_ForumBackup_Option_BackupDirectory" validation_method="verifyOption">
+      <default_value></default_value>
+      <edit_format_params></edit_format_params>
+      <sub_options></sub_options>
+      <relation group_id="SolidMeanForumBackup" display_order="5"/>
+    </option>
+    <option option_id="SolidMeanForumBackupEmail" edit_format="textbox" data_type="string" can_backup="1" validation_class="SolidMean_ForumBackup_Option_AdminEmail" validation_method="verifyOption">
+      <default_value></default_value>
+      <edit_format_params></edit_format_params>
+      <sub_options></sub_options>
+      <relation group_id="SolidMeanForumBackup" display_order="920"/>
+    </option>
+    <option option_id="SolidMeanForumBackupExcludeDirs" edit_format="textbox" data_type="string" can_backup="1">
+      <default_value></default_value>
+      <edit_format_params></edit_format_params>
+      <sub_options></sub_options>
+      <relation group_id="SolidMeanForumBackup" display_order="215"/>
+    </option>
+    <option option_id="SolidMeanForumBackupExcludeTbls" edit_format="textbox" data_type="string" can_backup="1">
+      <default_value></default_value>
+      <edit_format_params></edit_format_params>
+      <sub_options></sub_options>
+      <relation group_id="SolidMeanForumBackup" display_order="115"/>
+    </option>
+    <option option_id="SolidMeanForumBackupFileName" edit_format="textbox" data_type="string" can_backup="1" validation_class="SolidMean_ForumBackup_Option_FileName" validation_method="verifyOption">
+      <default_value>forumbackup</default_value>
+      <edit_format_params></edit_format_params>
+      <sub_options></sub_options>
+      <relation group_id="SolidMeanForumBackup" display_order="10"/>
+    </option>
+    <option option_id="SolidMeanForumBackupInactive" edit_format="onoff" data_type="boolean" can_backup="1">
+      <default_value>1</default_value>
+      <edit_format_params></edit_format_params>
+      <sub_options></sub_options>
+      <relation group_id="SolidMeanForumBackup" display_order="105"/>
+    </option>
+    <option option_id="SolidMeanForumBackupInactiveCode" edit_format="onoff" data_type="boolean" can_backup="1">
+      <default_value></default_value>
+      <edit_format_params></edit_format_params>
+      <sub_options></sub_options>
+      <relation group_id="SolidMeanForumBackup" display_order="205"/>
+    </option>
+    <option option_id="SolidMeanForumBackupInactiveMessage" edit_format="textbox" data_type="string" can_backup="1" validation_class="SolidMean_ForumBackup_Option_BoardInactiveMessage" validation_method="verifyOption">
+      <default_value>Currently running backups, hang on tight.</default_value>
+      <edit_format_params>rows=3</edit_format_params>
+      <sub_options></sub_options>
+      <relation group_id="SolidMeanForumBackup" display_order="910"/>
+    </option>
+    <option option_id="SolidMeanForumBackupIncludeCode" edit_format="onoff" data_type="boolean" can_backup="1">
+      <default_value>1</default_value>
+      <edit_format_params></edit_format_params>
+      <sub_options></sub_options>
+      <relation group_id="SolidMeanForumBackup" display_order="200"/>
+    </option>
+    <option option_id="SolidMeanForumBackupIncludeDatabase" edit_format="onoff" data_type="boolean" can_backup="1">
+      <default_value>1</default_value>
+      <edit_format_params></edit_format_params>
+      <sub_options></sub_options>
+      <relation group_id="SolidMeanForumBackup" display_order="100"/>
+    </option>
+  </optiongroups>
+  <permissions>
+    <permission_groups/>
+    <permissions/>
+    <interface_groups/>
+  </permissions>
+  <phrases>
+    <phrase title="cron_entry_forumbackupCodeExec" version_id="17" version_string="1.2.01"><![CDATA[ForumBackup / Code]]></phrase>
+    <phrase title="cron_entry_forumbackupExec" version_id="17" version_string="1.2.01"><![CDATA[ForumBackup / Database]]></phrase>
+    <phrase title="option_group_SolidMeanForumBackup" version_id="1" version_string="1.0.0"><![CDATA[ForumBackup]]></phrase>
+    <phrase title="option_group_SolidMeanForumBackup_description" version_id="4" version_string="1.0.2a"><![CDATA[Backup your forum database and code at timely intervals. Set the times to run the  <a href="admin.php?cron/forumbackupExec/edit">database</a> and  <a href="admin.php?cron/forumbackupCodeExec/edit">code</a> backups via the <a href="admin.php?cron/">Cron Entries</a> in <a href="admin.php?tools/">Tools</a>]]></phrase>
+    <phrase title="option_SolidMeanBackupForumGzipPath" version_id="8" version_string="1.1.3"><![CDATA[Path to compression utility]]></phrase>
+    <phrase title="option_SolidMeanBackupForumGzipPath_explain" version_id="16" version_string="1.2.00"><![CDATA[Some servers may need to have the above values set for  <a href="http://dev.mysql.com/doc/refman/5.1/en/mysqldump.html">mysqldump</a>, <a href="http://www.linfo.org/tar.html">tar</a>, and <a href="http://www.gzip.org/">gzip</a> or <a href="http://zlib.net/pigz/">pigz</a> binaries so that this addon can find those utilities. <br />
+<b>NOTE:</b> Include the full path and name of the binary, including any extension on the file.]]></phrase>
+    <phrase title="option_SolidMeanBackupForumMysqldumpPath" version_id="1" version_string="1.0.0"><![CDATA[Path to mysqldump]]></phrase>
+    <phrase title="option_SolidMeanBackupForumMysqldumpPath_explain" version_id="4" version_string="1.0.2a"><![CDATA[]]></phrase>
+    <phrase title="option_SolidMeanBackupForumTarPath" version_id="4" version_string="1.0.2a"><![CDATA[Path to tar]]></phrase>
+    <phrase title="option_SolidMeanBackupForumTarPath_explain" version_id="4" version_string="1.0.2a"><![CDATA[]]></phrase>
+    <phrase title="option_SolidMeanForumBackupCompressCode" version_id="16" version_string="1.2.00"><![CDATA[Compress the backup file?]]></phrase>
+    <phrase title="option_SolidMeanForumBackupCompressCode_explain" version_id="16" version_string="1.2.00"><![CDATA[This option should always be checked to save space, but can be unchecked for testing or other purposes. Gzip is the default compression method, but can be changed in the <a href="#9">Miscellaneous<a/> options.]]></phrase>
+    <phrase title="option_SolidMeanForumBackupCompressDatabase" version_id="16" version_string="1.2.00"><![CDATA[Compress the backup file?]]></phrase>
+    <phrase title="option_SolidMeanForumBackupCompressDatabase_explain" version_id="16" version_string="1.2.00"><![CDATA[This option should always be checked to save space, but can be unchecked for testing or other purposes. Gzip is the default compression method, but can be changed in the <a href="#9">Miscellaneous<a/> options.]]></phrase>
+    <phrase title="option_SolidMeanForumBackupCompressionType" version_id="8" version_string="1.1.3"><![CDATA[Compression Type]]></phrase>
+    <phrase title="option_SolidMeanForumBackupCompressionType_explain" version_id="8" version_string="1.1.3"><![CDATA[The type of compression to use on the backup files. Defaults to <a href="http://www.gnu.org/software/gzip/">gzip</a>. <a href="http://zlib.net/pigz/">pigz</a> can be a speed advantage if your server supports it.<br />
+<b>NOTE:</b> Do not use pigz unless your server supports it, test it with debug turned on, and check the ouput before setting it permanently.]]></phrase>
+    <phrase title="option_SolidMeanForumBackupCopies" version_id="2" version_string="1.0.1"><![CDATA[# of Database Backups]]></phrase>
+    <phrase title="option_SolidMeanForumBackupCopiesCode" version_id="2" version_string="1.0.1"><![CDATA[# of Code Backups]]></phrase>
+    <phrase title="option_SolidMeanForumBackupCopiesCode_explain" version_id="12" version_string="1.1.7"><![CDATA[How many copies of the code backups to keep. Oldest versions will be deleted.]]></phrase>
+    <phrase title="option_SolidMeanForumBackupCopies_explain" version_id="13" version_string="1.1.8"><![CDATA[How many copies of the database backups to keep. Oldest versions will be deleted.]]></phrase>
+    <phrase title="option_SolidMeanForumBackupDateFormat" version_id="1" version_string="1.0.0"><![CDATA[Date Format]]></phrase>
+    <phrase title="option_SolidMeanForumBackupDateFormat_explain" version_id="1" version_string="1.0.0"><![CDATA[The date format for the backup files that will be appended to the file name, forumbackup_yyyy-mm-dd-hhmss.sql for example. See <a href="http://php.net/manual/en/function.date.php">PHP Date</a> for more information.]]></phrase>
+    <phrase title="option_SolidMeanForumBackupDebug" version_id="2" version_string="1.0.1"><![CDATA[Debug Mode?]]></phrase>
+    <phrase title="option_SolidMeanForumBackupDebug_explain" version_id="2" version_string="1.0.1"><![CDATA[If this is checked, a log file with the name of the backup file name will be written to the backup directory. Useful for debugging.]]></phrase>
+    <phrase title="option_SolidMeanForumBackupDirectory" version_id="1" version_string="1.0.0"><![CDATA[Backup Directory]]></phrase>
+    <phrase title="option_SolidMeanForumBackupDirectory_explain" version_id="1" version_string="1.0.0"><![CDATA[Specify a directory to store backup files.<br />
+<b>NOTE</b>: It is highly  recommended that this directory is outside of your XenForo root.  This needs to be an absolute path, and the directory needs to be writable by the web server. <b>If not entered, the backup will not run.</b>]]></phrase>
+    <phrase title="option_SolidMeanForumBackupEmail" version_id="4" version_string="1.0.2a"><![CDATA[Email]]></phrase>
+    <phrase title="option_SolidMeanForumBackupEmail_explain" version_id="4" version_string="1.0.2a"><![CDATA[Send backup completion report to this email address. Leave this field blank if you don't want to use it.]]></phrase>
+    <phrase title="option_SolidMeanForumBackupExcludeDirs" version_id="12" version_string="1.1.7"><![CDATA[Exclude Items]]></phrase>
+    <phrase title="option_SolidMeanForumBackupExcludeDirs_explain" version_id="12" version_string="1.1.7"><![CDATA[Directories or filenames to exclude from the backup relative to the XenForo root, separated by commas.<br /><b>NOTE:</b> Any and all directories by these names will be excluded.<br /><br />
+Edit the <a href="admin.php?cron/forumbackupCodeExec/edit">Cron Entry</a> to schedule when this backup should run.]]></phrase>
+    <phrase title="option_SolidMeanForumBackupExcludeTbls" version_id="13" version_string="1.1.8"><![CDATA[Exclude Tables]]></phrase>
+    <phrase title="option_SolidMeanForumBackupExcludeTbls_explain" version_id="13" version_string="1.1.8"><![CDATA[Tables to ignore in the backup. These are usually temporary tables don't provide much value keeping. If you have a large database, this can reduce the space used by the database backup. Some suggested tables to exclude are: xf_bb_code_parse_cache,xf_search,xf_search_index,xf_ip.<br />
+<b>NOTE:</b> Excluding tables from the backup may force you to recreate the table structure when a restore is performed..<br /><br />
+Edit the <a href="admin.php?cron/forumbackupExec/edit">Cron Entry</a> to schedule when this backup should run.]]></phrase>
+    <phrase title="option_SolidMeanForumBackupFileName" version_id="1" version_string="1.0.0"><![CDATA[File Name]]></phrase>
+    <phrase title="option_SolidMeanForumBackupFileName_explain" version_id="2" version_string="1.0.1"><![CDATA[The file name you want to use for backups. <br />
+<b>NOTE:</b>  Don't use an extension on the end. If empty, this will default  to 'forumbackup'. A date/time stamp will be added to it automatically.]]></phrase>
+    <phrase title="option_SolidMeanForumBackupInactive" version_id="2" version_string="1.0.1"><![CDATA[Put Forum in Maintenance Mode?]]></phrase>
+    <phrase title="option_SolidMeanForumBackupInactiveCode" version_id="4" version_string="1.0.2a"><![CDATA[Put Forum In Maintenance Mode?]]></phrase>
+    <phrase title="option_SolidMeanForumBackupInactiveCode_explain" version_id="4" version_string="1.0.2a"><![CDATA[Whether to make the board inactive or not during code backups.<br /><b>NOTE:</b> This may generally be left off, although you may miss backing up new attachments avatars if left off.]]></phrase>
+    <phrase title="option_SolidMeanForumBackupInactiveMessage" version_id="2" version_string="1.0.1"><![CDATA[Maintenance Message]]></phrase>
+    <phrase title="option_SolidMeanForumBackupInactiveMessage_explain" version_id="14" version_string="1.1.9"><![CDATA[When the backup is running, and the "Put Board in Maintenance Mode" option is selected, the forum will be set to inactive, and this message will be displayed, rather than the default "Board is inactive" text. You may use HTML. If no text is entered here, the default "Board is inactive" text will be used.]]></phrase>
+    <phrase title="option_SolidMeanForumBackupInactive_explain" version_id="4" version_string="1.0.2a"><![CDATA[Whether to make the board inactive or not during database backups.<br />
+<b>NOTE:</b> For a more <i>complete</i> database backup file, this option should be left on, but if your backups take a long time, or you're testing on your site,  you can disable this option.]]></phrase>
+    <phrase title="option_SolidMeanForumBackupIncludeCode" version_id="2" version_string="1.0.1"><![CDATA[Backup the Forum Root?]]></phrase>
+    <phrase title="option_SolidMeanForumBackupIncludeCode_explain" version_id="2" version_string="1.0.1"><![CDATA[Backup all the files in the forum root. Includes PHP files, attachments, add-ons, etc.]]></phrase>
+    <phrase title="option_SolidMeanForumBackupIncludeDatabase" version_id="4" version_string="1.0.2a"><![CDATA[Backup the Database?]]></phrase>
+    <phrase title="option_SolidMeanForumBackupIncludeDatabase_explain" version_id="16" version_string="1.2.00"><![CDATA[Create a backup file of the database.]]></phrase>
+    <phrase title="solidmean_forumbackup_elapsed_time" version_id="4" version_string="1.0.2a"><![CDATA[Elapsed Time]]></phrase>
+    <phrase title="solidmean_forumbackup_email_body_html" version_id="4" version_string="1.0.2a"><![CDATA[The {type} backup has completed. This email was sent via the ForumBackup addon cron process. Visit the administration control panel options to change the backup configuration.]]></phrase>
+    <phrase title="solidmean_forumbackup_email_body_text" version_id="4" version_string="1.0.2a"><![CDATA[The database backup has completed. This email was sent via the ForumBackup addon cron process. Visit the administration control panel options to change the ForumBackup parameters.]]></phrase>
+    <phrase title="solidmean_forumbackup_email_subject" version_id="4" version_string="1.0.2a"><![CDATA[{type} Backup  (from {board_title})]]></phrase>
+    <phrase title="solidmean_forumbackup_filename_must_be_alphanumeric" version_id="1" version_string="1.0.0"><![CDATA[Backup file name must be alphanumeric]]></phrase>
+    <phrase title="solidmean_forumbackup_forumbackup_path_doesnt_exist" version_id="1" version_string="1.0.0"><![CDATA[Forum backup path doesn't exist]]></phrase>
+    <phrase title="solidmean_forumbackup_forumbackup_path_not_writable" version_id="1" version_string="1.0.0"><![CDATA[The forum backup directory is not writable by the web server.]]></phrase>
+    <phrase title="solidmean_forumbackup_gzip_binary_doesnt_exist" version_id="4" version_string="1.0.2a"><![CDATA[The gzip utility cannot be found in that location.]]></phrase>
+    <phrase title="solidmean_forumbackup_invalid_email" version_id="4" version_string="1.0.2a"><![CDATA[Email address is invalid.]]></phrase>
+    <phrase title="solidmean_forumbackup_mysqldump_binary_doesnt_exist" version_id="1" version_string="1.0.0"><![CDATA[The mysqldump binary cannot be found in that location]]></phrase>
+    <phrase title="solidmean_forumbackup_number_of_copies_not_numeric" version_id="1" version_string="1.0.0"><![CDATA[Number of backup copies must be numeric]]></phrase>
+    <phrase title="solidmean_forumbackup_path_to_file" version_id="5" version_string="1.1.0"><![CDATA[File Location]]></phrase>
+    <phrase title="solidmean_forumbackup_start_time" version_id="4" version_string="1.0.2a"><![CDATA[Start Time]]></phrase>
+    <phrase title="solidmean_forumbackup_stop_time" version_id="4" version_string="1.0.2a"><![CDATA[Stop Time]]></phrase>
+    <phrase title="solidmean_forumbackup_tar_binary_doesnt_exist" version_id="4" version_string="1.0.2a"><![CDATA[The tar utility cannot be found in that location.]]></phrase>
+    <phrase title="tab_solidmean_forumbackup_code_options" version_id="4" version_string="1.0.2a"><![CDATA[Code Options]]></phrase>
+    <phrase title="tab_solidmean_forumbackup_database_options" version_id="4" version_string="1.0.2a"><![CDATA[Database Options]]></phrase>
+    <phrase title="tab_solidmean_forumbackup_main_options" version_id="2" version_string="1.0.1"><![CDATA[Main Options]]></phrase>
+    <phrase title="tab_solidmean_forumbackup_misc_options" version_id="2" version_string="1.0.1"><![CDATA[Miscellaneous Options]]></phrase>
+    <phrase title="tab_solidmean_forumbackup_SFTP_options" version_id="9" version_string="1.1.3sftp"><![CDATA[SFTP Options]]></phrase>
+  </phrases>
+  <route_prefixes/>
+  <style_properties/>
+  <templates/>
+  <public_template_modifications/>
+  <bb_code_media_sites/>
+  <bb_codes/>
+</addon>

@@ -9,7 +9,7 @@
 class SolidMean_ForumBackup_Option_CompressionType
 {
     /**
-     *  This method checks  the validity of the gzip and pigz binary.
+     *  This method checks  the validity of the gzip, pigz, and bzip2 binary.
      *
      * @param $optionValue
      * @param XenForo_DataWriter $dw
@@ -23,7 +23,7 @@ class SolidMean_ForumBackup_Option_CompressionType
             return true;
         }
 
-        // TODO don't know how to check the presence of pigz yet in php, so just returning true for now.
+        // TODO don't know how to check the presence of pigz/bzip2 yet in php, so just returning true for now.
         return true;
     }
 

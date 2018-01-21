@@ -164,7 +164,7 @@ class SolidMean_ForumBackup_CronEntry_Backup
             }
             else
             {
-                $log->write("Code backup wasn't created. ", "ERROR");
+                $log->write("Code backup wasn't created: ".$opt->getBackuppath(), "ERROR");
                 throw new XenForo_Exception('Code backup wasn\'t created. Run again with debug enabled');
             }
 
@@ -253,17 +253,17 @@ class SolidMean_ForumBackup_CronEntry_Backup
      */
     private static function _backupDatabase(SolidMean_ForumBackup_Options $opt, SolidMean_ForumBackup_Helper_log $log)
     {
-        $command = $opt->getMysqldumppath() .
+        $mysqldump = $opt->getMysqldumppath() .
             ' --defaults-extra-file=' . $opt->getDbconfigfile() .
             ' --single-transaction ' .
             $opt->getDbname() . self::_formatTableExclusions($opt->getDbname(),$opt->getExcludeTbls()) .
             $opt->getExportoptions() .
             ' 2>> ' .  $log->getPath();
 
-        $log->write( "Running database backup with: " . $command);
+        $log->write( "Running database backup with: " . $mysqldump);
 
         // Run the database backup
-		XenForo_Model::create('SolidMean_ForumBackup_Model_Database')->backup($command);
+		XenForo_Model::create('SolidMean_ForumBackup_Model_Database')->backup($mysqldump);
 
         $log->write("Database backup complete");
 
@@ -281,28 +281,42 @@ class SolidMean_ForumBackup_CronEntry_Backup
      */
     private static function _backupCode(SolidMean_ForumBackup_Options $opt, SolidMean_ForumBackup_Helper_log $log)
     {
-        $compressioncommand = $opt->getCompressiontype();
-        if($opt->getGzippath() != 'gzip')
+        if(!empty($opt->getGzippath()))
         {
             $compressioncommand = $opt->getGzippath();
         }
+        else
+        {
+            $compressioncommand = $opt->getCompressiontype();
+        }
+
+        if($opt->getFollowSymlinks()) {
+            $followsymlinks = " -h ";
+        }
+        else {
+            $followsymlinks = "";
+        }
+
+        $tarfile_name = trim(str_replace(array('.gz','.bz2'), array('',''),$opt->getBackuppath()));
 
         // The tar (can't seem to get piping to work between tar and gzip, why why why?
-        $command = $opt->getTarpath() . ' --ignore-failed-read -f ' . trim($opt->getBackuppath(),'.gz') . ' -cP ' .
-            XenForo_Application::getInstance()->getRootDir() . self::_formatFileExclusions($opt->getExcludeDirs()) .
-            ' 2>> ' .  $log->getPath();
+        $tar = $opt->getTarpath() .  $followsymlinks . ' --ignore-failed-read -f '
+            . $tarfile_name
+            . ' -cP ' .  XenForo_Application::getInstance()->getRootDir()
+            . self::_formatFileExclusions($opt->getExcludeDirs())
+            . ' 2>> ' .  $log->getPath();
 
-        $log->write("Creating the tar file: " . $command);
+        $log->write("Creating the tar file: " . $tar);
 
-        exec($command);
+        exec($tar);
 
         if($opt->getCompressCode())
         {
-            // Now the gzip/pigz if compress is enabled.
-            $command = $compressioncommand . ' ' . trim($opt->getBackuppath(),'.gz') .  ' 2>> ' .  $log->getPath();
-            $log->write("Compressing the file: " . $command);
+            // Now the gzip/pigz/bzip2 if compress is enabled.
+            $compress = $compressioncommand . ' ' . $tarfile_name .  ' 2>> ' .  $log->getPath();
+            $log->write("Compressing the file: " . $compress);
 
-            exec($command);
+            exec($compress);
         }
         else
         {
@@ -605,5 +619,34 @@ class SolidMean_ForumBackup_CronEntry_Backup
         }
 
         return false;
+    }
+
+    public static function cleanupOrphanConfigs()
+    {
+
+        // Get the options for the addon.
+        $opt = new SolidMean_ForumBackup_Options('Database');
+
+        // Create a new log object for debugging.
+        $log = new SolidMean_ForumBackup_Helper_Log($opt->getDebug(),
+        $opt->getDirectory() . $opt->getFilename() . '.log');
+
+        $log->write("START " . " Orphan Config File Cleanup");
+
+        // find any orphan config files
+        if ($handle = opendir($opt->getDirectory())) {
+            while (false !== ($file = readdir($handle)))
+            {
+                $pos = strpos($file, ".ForumBackup_");
+                if($pos !== false)
+                {
+                    $log->write("Removing orphan config file: " . $file .", modified " .
+                        date ("Y-m-d H:i:s", filemtime($opt->getDirectory() . $file)));
+                    @unlink($opt->getDirectory() . $file);
+                }
+            }
+            closedir($handle);
+        }
+        $log->write("END " . " Orphan Config File Cleanup");
     }
 }

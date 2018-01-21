@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<addon addon_id="SolidMean_ForumBackup" title="ForumBackup" version_string="1.2.01" version_id="17" url="" install_callback_class="SolidMean_ForumBackup_Install" install_callback_method="build" uninstall_callback_class="SolidMean_ForumBackup_Uninstall" uninstall_callback_method="destroy">
+<addon addon_id="SolidMean_ForumBackup" title="ForumBackup" version_string="1.3.01" version_id="19" url="" install_callback_class="SolidMean_ForumBackup_Install" install_callback_method="build" uninstall_callback_class="SolidMean_ForumBackup_Uninstall" uninstall_callback_method="destroy">
   <admin_navigation/>
   <admin_permissions/>
   <admin_style_properties/>
@@ -41,6 +41,7 @@
 
 	<xen:if hascontent="true"><div class="optionGroupDescription muted"><i><xen:contentcheck>{xen:raw $group.description}</xen:contentcheck></i></div></xen:if>
 
+	<p><div style="color:red;margin:10px;">{$orphanedConfigFilesMessage}</div></p>
 	<ul class="tabs mainTabs Tabs" data-panes="#OptionPanes > li" data-history="on">
 	<li><a href="{$requestPaths.requestUri}#1">{xen:phrase tab_solidmean_forumbackup_main_options}</a></li>
 	<li><a href="{$requestPaths.requestUri}#2">{xen:phrase tab_solidmean_forumbackup_database_options}</a></li>
@@ -51,18 +52,17 @@
 	</ul>
 
 	<ul id="OptionPanes">
-	<xen:foreach loop="$renderedOptions" value="$_group">
-		<xen:if hascontent="true">
-		<li id="{$i}" class="profileContent">
-		<fieldset class="optionList">
-			<xen:contentcheck>
-			<xen:set var="$i">{xen:calc '{$i} + 1'}</xen:set>
-			<xen:foreach loop="$_group" key="$optionId" value="$renderedOption">{xen:raw $renderedOption}</xen:foreach>
-			</xen:contentcheck>
-		</fieldset>
-		</li>
-		</xen:if>
-	</xen:foreach>
+		<xen:foreach loop="$renderedOptions" value="$_group" i="$i">
+			<xen:if hascontent="true">
+				<li id="{$i}" class="profileContent">
+					<fieldset class="optionList">
+						<xen:contentcheck>
+						<xen:foreach loop="$_group" key="$optionId" value="$renderedOption">{xen:raw $renderedOption}</xen:foreach>
+						</xen:contentcheck>
+					</fieldset>
+				</li>	
+			</xen:if>
+		</xen:foreach>
 	</ul>
 
 	<xen:submitunit save="{xen:phrase save_changes}">
@@ -75,7 +75,9 @@
   <code_event_listeners>
     <listener event_id="template_post_render" execute_order="10" callback_class="SolidMean_ForumBackup_Listener_Template" callback_method="templatePostRender" active="1" hint="" description="Admin options as tabs"/>
   </code_event_listeners>
-  <cron/>
+  <cron>
+    <entry entry_id="forumbackupOrphanCleanup" cron_class="SolidMean_ForumBackup_CronEntry_Backup" cron_method="cleanupOrphanConfigs" active="1"><![CDATA[{"day_type":"dom","dom":["1"],"hours":["13"],"minutes":["30"]}]]></entry>
+  </cron>
   <email_templates>
     <template title="solidmean_forumbackup_email_admin">
       <subject><![CDATA[{xen:phrase solidmean_forumbackup_email_subject, 'type={$type}', 'subject={$subject}', 'board_title={$xenOptions.boardTitle}'}]]></subject>
@@ -147,7 +149,8 @@
     <option option_id="SolidMeanForumBackupCompressionType" edit_format="radio" data_type="string" can_backup="1" validation_class="SolidMean_ForumBackup_Option_CompressionType" validation_method="verifyCompressionType">
       <default_value>gzip</default_value>
       <edit_format_params>gzip=gzip
-pigz=pigz</edit_format_params>
+pigz=pigz
+bzip2=bzip2</edit_format_params>
       <sub_options></sub_options>
       <relation group_id="SolidMeanForumBackup" display_order="945"/>
     </option>
@@ -155,7 +158,7 @@ pigz=pigz</edit_format_params>
       <default_value>7</default_value>
       <edit_format_params>min=1
 step=1
-max=100</edit_format_params>
+max=9999</edit_format_params>
       <sub_options></sub_options>
       <relation group_id="SolidMeanForumBackup" display_order="110"/>
     </option>
@@ -163,7 +166,7 @@ max=100</edit_format_params>
       <default_value>7</default_value>
       <edit_format_params>min=1
 step=1
-max=100</edit_format_params>
+max=9999</edit_format_params>
       <sub_options></sub_options>
       <relation group_id="SolidMeanForumBackup" display_order="210"/>
     </option>
@@ -209,6 +212,12 @@ max=100</edit_format_params>
       <sub_options></sub_options>
       <relation group_id="SolidMeanForumBackup" display_order="10"/>
     </option>
+    <option option_id="SolidMeanForumBackupFollowSymlinks" edit_format="onoff" data_type="boolean" can_backup="1">
+      <default_value></default_value>
+      <edit_format_params></edit_format_params>
+      <sub_options></sub_options>
+      <relation group_id="SolidMeanForumBackup" display_order="220"/>
+    </option>
     <option option_id="SolidMeanForumBackupInactive" edit_format="onoff" data_type="boolean" can_backup="1">
       <default_value>1</default_value>
       <edit_format_params></edit_format_params>
@@ -248,11 +257,12 @@ max=100</edit_format_params>
   <phrases>
     <phrase title="cron_entry_forumbackupCodeExec" version_id="17" version_string="1.2.01"><![CDATA[ForumBackup / Code]]></phrase>
     <phrase title="cron_entry_forumbackupExec" version_id="17" version_string="1.2.01"><![CDATA[ForumBackup / Database]]></phrase>
+    <phrase title="cron_entry_forumbackupOrphanCleanup" version_id="19" version_string="1.3.01"><![CDATA[ForumBackup / Orphan Cleanup]]></phrase>
     <phrase title="option_group_SolidMeanForumBackup" version_id="1" version_string="1.0.0"><![CDATA[ForumBackup]]></phrase>
     <phrase title="option_group_SolidMeanForumBackup_description" version_id="4" version_string="1.0.2a"><![CDATA[Backup your forum database and code at timely intervals. Set the times to run the  <a href="admin.php?cron/forumbackupExec/edit">database</a> and  <a href="admin.php?cron/forumbackupCodeExec/edit">code</a> backups via the <a href="admin.php?cron/">Cron Entries</a> in <a href="admin.php?tools/">Tools</a>]]></phrase>
     <phrase title="option_SolidMeanBackupForumGzipPath" version_id="8" version_string="1.1.3"><![CDATA[Path to compression utility]]></phrase>
-    <phrase title="option_SolidMeanBackupForumGzipPath_explain" version_id="16" version_string="1.2.00"><![CDATA[Some servers may need to have the above values set for  <a href="http://dev.mysql.com/doc/refman/5.1/en/mysqldump.html">mysqldump</a>, <a href="http://www.linfo.org/tar.html">tar</a>, and <a href="http://www.gzip.org/">gzip</a> or <a href="http://zlib.net/pigz/">pigz</a> binaries so that this addon can find those utilities. <br />
-<b>NOTE:</b> Include the full path and name of the binary, including any extension on the file.]]></phrase>
+    <phrase title="option_SolidMeanBackupForumGzipPath_explain" version_id="18" version_string="1.2.02"><![CDATA[Some servers may need to have the above values set for  <a href="http://dev.mysql.com/doc/refman/5.1/en/mysqldump.html">mysqldump</a>, <a href="http://www.linfo.org/tar.html">tar</a>, and <a href="http://www.gzip.org/">gzip</a>, <a href="http://zlib.net/pigz/">pigz</a>, or <a href="http://www.bzip.org/">bzip2</a> binaries so that this addon can find those utilities. <br />
+<b>NOTE:</b> Include the full path and name of the binary, "/usr/bin/gzip" for instance.]]></phrase>
     <phrase title="option_SolidMeanBackupForumMysqldumpPath" version_id="1" version_string="1.0.0"><![CDATA[Path to mysqldump]]></phrase>
     <phrase title="option_SolidMeanBackupForumMysqldumpPath_explain" version_id="4" version_string="1.0.2a"><![CDATA[]]></phrase>
     <phrase title="option_SolidMeanBackupForumTarPath" version_id="4" version_string="1.0.2a"><![CDATA[Path to tar]]></phrase>
@@ -262,8 +272,8 @@ max=100</edit_format_params>
     <phrase title="option_SolidMeanForumBackupCompressDatabase" version_id="16" version_string="1.2.00"><![CDATA[Compress the backup file?]]></phrase>
     <phrase title="option_SolidMeanForumBackupCompressDatabase_explain" version_id="16" version_string="1.2.00"><![CDATA[This option should always be checked to save space, but can be unchecked for testing or other purposes. Gzip is the default compression method, but can be changed in the <a href="#9">Miscellaneous<a/> options.]]></phrase>
     <phrase title="option_SolidMeanForumBackupCompressionType" version_id="8" version_string="1.1.3"><![CDATA[Compression Type]]></phrase>
-    <phrase title="option_SolidMeanForumBackupCompressionType_explain" version_id="8" version_string="1.1.3"><![CDATA[The type of compression to use on the backup files. Defaults to <a href="http://www.gnu.org/software/gzip/">gzip</a>. <a href="http://zlib.net/pigz/">pigz</a> can be a speed advantage if your server supports it.<br />
-<b>NOTE:</b> Do not use pigz unless your server supports it, test it with debug turned on, and check the ouput before setting it permanently.]]></phrase>
+    <phrase title="option_SolidMeanForumBackupCompressionType_explain" version_id="18" version_string="1.2.02"><![CDATA[The type of compression to use on the backup files. Defaults to <a href="http://www.gnu.org/software/gzip/">gzip</a>. <a href="http://zlib.net/pigz/">pigz</a> can be a speed advantage if your server supports it.<br />
+<b>NOTE:</b> Do not use pigz or bzip2 unless your server supports it. Test it with debug turned on, and check the ouput before setting it permanently.]]></phrase>
     <phrase title="option_SolidMeanForumBackupCopies" version_id="2" version_string="1.0.1"><![CDATA[# of Database Backups]]></phrase>
     <phrase title="option_SolidMeanForumBackupCopiesCode" version_id="2" version_string="1.0.1"><![CDATA[# of Code Backups]]></phrase>
     <phrase title="option_SolidMeanForumBackupCopiesCode_explain" version_id="12" version_string="1.1.7"><![CDATA[How many copies of the code backups to keep. Oldest versions will be deleted.]]></phrase>
@@ -278,8 +288,7 @@ max=100</edit_format_params>
     <phrase title="option_SolidMeanForumBackupEmail" version_id="4" version_string="1.0.2a"><![CDATA[Email]]></phrase>
     <phrase title="option_SolidMeanForumBackupEmail_explain" version_id="4" version_string="1.0.2a"><![CDATA[Send backup completion report to this email address. Leave this field blank if you don't want to use it.]]></phrase>
     <phrase title="option_SolidMeanForumBackupExcludeDirs" version_id="12" version_string="1.1.7"><![CDATA[Exclude Items]]></phrase>
-    <phrase title="option_SolidMeanForumBackupExcludeDirs_explain" version_id="12" version_string="1.1.7"><![CDATA[Directories or filenames to exclude from the backup relative to the XenForo root, separated by commas.<br /><b>NOTE:</b> Any and all directories by these names will be excluded.<br /><br />
-Edit the <a href="admin.php?cron/forumbackupCodeExec/edit">Cron Entry</a> to schedule when this backup should run.]]></phrase>
+    <phrase title="option_SolidMeanForumBackupExcludeDirs_explain" version_id="18" version_string="1.2.02"><![CDATA[Directories or filenames to exclude from the backup relative to the XenForo root, separated by commas.<br /><b>NOTE:</b> Any and all directories by these names will be excluded.]]></phrase>
     <phrase title="option_SolidMeanForumBackupExcludeTbls" version_id="13" version_string="1.1.8"><![CDATA[Exclude Tables]]></phrase>
     <phrase title="option_SolidMeanForumBackupExcludeTbls_explain" version_id="13" version_string="1.1.8"><![CDATA[Tables to ignore in the backup. These are usually temporary tables don't provide much value keeping. If you have a large database, this can reduce the space used by the database backup. Some suggested tables to exclude are: xf_bb_code_parse_cache,xf_search,xf_search_index,xf_ip.<br />
 <b>NOTE:</b> Excluding tables from the backup may force you to recreate the table structure when a restore is performed..<br /><br />
@@ -287,6 +296,9 @@ Edit the <a href="admin.php?cron/forumbackupExec/edit">Cron Entry</a> to schedul
     <phrase title="option_SolidMeanForumBackupFileName" version_id="1" version_string="1.0.0"><![CDATA[File Name]]></phrase>
     <phrase title="option_SolidMeanForumBackupFileName_explain" version_id="2" version_string="1.0.1"><![CDATA[The file name you want to use for backups. <br />
 <b>NOTE:</b>  Don't use an extension on the end. If empty, this will default  to 'forumbackup'. A date/time stamp will be added to it automatically.]]></phrase>
+    <phrase title="option_SolidMeanForumBackupFollowSymlinks" version_id="18" version_string="1.2.02"><![CDATA[Follow Symlinks]]></phrase>
+    <phrase title="option_SolidMeanForumBackupFollowSymlinks_explain" version_id="18" version_string="1.2.02"><![CDATA[Have the backup process follow symbolic links to files elsewhere on the file system, and include them in the backup.<br /><br />
+Edit the <a href="admin.php?cron/forumbackupCodeExec/edit">Cron Entry</a> to schedule when this backup should run.]]></phrase>
     <phrase title="option_SolidMeanForumBackupInactive" version_id="2" version_string="1.0.1"><![CDATA[Put Forum in Maintenance Mode?]]></phrase>
     <phrase title="option_SolidMeanForumBackupInactiveCode" version_id="4" version_string="1.0.2a"><![CDATA[Put Forum In Maintenance Mode?]]></phrase>
     <phrase title="option_SolidMeanForumBackupInactiveCode_explain" version_id="4" version_string="1.0.2a"><![CDATA[Whether to make the board inactive or not during code backups.<br /><b>NOTE:</b> This may generally be left off, although you may miss backing up new attachments avatars if left off.]]></phrase>
@@ -309,6 +321,7 @@ Edit the <a href="admin.php?cron/forumbackupExec/edit">Cron Entry</a> to schedul
     <phrase title="solidmean_forumbackup_invalid_email" version_id="4" version_string="1.0.2a"><![CDATA[Email address is invalid.]]></phrase>
     <phrase title="solidmean_forumbackup_mysqldump_binary_doesnt_exist" version_id="1" version_string="1.0.0"><![CDATA[The mysqldump binary cannot be found in that location]]></phrase>
     <phrase title="solidmean_forumbackup_number_of_copies_not_numeric" version_id="1" version_string="1.0.0"><![CDATA[Number of backup copies must be numeric]]></phrase>
+    <phrase title="solidmean_forumbackup_orphan_configs" version_id="19" version_string="1.3.01"><![CDATA[NOTE: Orphaned config files were found in the backup directory. These are cleaned up once a month, but their existence means that some backups may not completing successfully. Please check your debug file.]]></phrase>
     <phrase title="solidmean_forumbackup_path_to_file" version_id="5" version_string="1.1.0"><![CDATA[File Location]]></phrase>
     <phrase title="solidmean_forumbackup_start_time" version_id="4" version_string="1.0.2a"><![CDATA[Start Time]]></phrase>
     <phrase title="solidmean_forumbackup_stop_time" version_id="4" version_string="1.0.2a"><![CDATA[Stop Time]]></phrase>

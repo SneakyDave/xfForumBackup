@@ -19,6 +19,7 @@ class SolidMean_ForumBackup_Options
     private $excludetbls;
     private $mysqldumppath;
     private $tarpath;
+    // This is really the compression tool path, gzip, pigz, or bzip2.
     private $gzippath;
     private $debug;
     private $includedatabase;
@@ -31,6 +32,7 @@ class SolidMean_ForumBackup_Options
     private $exportoptions;
     private $compressdatabase;
     private $compresscode;
+    private $followsymlinks;
 
     // These are variables only available in this class.
     private $type;
@@ -73,6 +75,7 @@ class SolidMean_ForumBackup_Options
         self::setMaintenancedatabase($options->SolidMeanForumBackupInactive);
         self::setMaintenancecode($options->SolidMeanForumBackupInactiveCode);
         self::setEmail($options->SolidMeanForumBackupEmail);
+        self::setFollowSymlinks($options->SolidMeanForumBackupFollowSymlinks);
         self::setStarttime(time());
         self::setStoptime(0);
         self::setExportoptions('');
@@ -82,13 +85,18 @@ class SolidMean_ForumBackup_Options
         if($this->type == "Database")
         {
             $compressioncommand = $this->getCompressiontype();
-            if($this->getGzippath() != 'gzip')
+            if(!empty($this->getGzippath()))
             {
                 $compressioncommand = $this->getGzippath();
             }
             if($this->getCompressDatabase())
             {
-                $this->extension = ".sql.gz";
+                if($this->getCompressiontype() == 'bzip2') {
+                    $this->extension = ".sql.bz2";
+                }
+                else {
+                    $this->extension = ".sql.gz";
+                }
             }
             else {
                 $this->extension = ".sql";
@@ -105,9 +113,12 @@ class SolidMean_ForumBackup_Options
         }
         elseif ($this->type == "Code")
         {
-            if($this->getCompressCode())
-            {
-                $this->extension = ".code.tar.gz";
+            if($this->getCompressCode()) {
+                if ($this->getCompressiontype() == "bzip2") {
+                    $this->extension = ".code.tar.bz2";
+                } else {
+                    $this->extension = ".code.tar.gz";
+                }
             }
             else {
                 $this->extension = ".code.tar";
@@ -362,19 +373,6 @@ class SolidMean_ForumBackup_Options
     {
         $this->gzippath = $gzippath;
 
-        if (empty($this->gzippath))
-        {
-            // linux assumed, no extension
-            $this->gzippath =  'gzip';
-        }
-        else
-        {
-            // Windows fixes
-            if(strstr($this->gzippath, ' ' ))
-            {
-                $this->gzippath =  '"' . $this->gzippath . '"';
-            }
-        }
     }
 
     /**
@@ -632,5 +630,17 @@ class SolidMean_ForumBackup_Options
         $this->extension = $extension;
     }
 
+    public function getFollowSymlinks()
+    {
+        return $this->followsymlinks;
+    }
+
+    /**
+     * @param mixed $followsymlinks
+     */
+    public function setFollowSymlinks($followsymlinks)
+    {
+        $this->followsymlinks = $followsymlinks;
+    }
 
 }

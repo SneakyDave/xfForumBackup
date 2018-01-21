@@ -22,11 +22,34 @@ class SolidMean_ForumBackup_Listener_Template
         if ($templateName == 'option_list')
         {
            // Check to see if this is the addon options we want to change.
-            if ($containerData['title'] == 'Options: ForumBackup')
+            $pos = strpos($containerData['title'], ': ForumBackup');
+            if ($pos !== false)
             {
+                $params = $template->getParams();
+                $params['orphanedConfigFilesMessage'] = '';
+                if(self::_orphanConfigsExist() > 0)
+                {
+                    $params['orphanedConfigFilesMessage'] = new XenForo_Phrase('solidmean_forumbackup_orphan_configs');
+                }
                 /* Change the default options list template to our new one */
-                $content = $template->create('SolidMeanForumBackup_option_list', $template->getParams());
+                $content = $template->create('SolidMeanForumBackup_option_list', $params);
             }
         }
     }
+    private static function _orphanConfigsExist()
+    {
+        $opt = new SolidMean_ForumBackup_Options('Database');
+        $count = 0;
+        if(!empty($opt->getDirectory()))
+        {
+            $pattern = $opt->getDirectory() . ".ForumBackup_*.cnf";
+            foreach (glob($pattern) as $item) {
+                $count++;
+            }
+        }
+
+        return $count;
+
+    }
+
 }
